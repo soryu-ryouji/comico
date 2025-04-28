@@ -361,28 +361,74 @@ class ChapterViewerScreen extends StatefulWidget {
 class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
   int currentPageIndex = 0;
   final FocusNode _focusNode = FocusNode();
+  final Map<int, ImageProvider> _imageCache = {};
+  static const int _precacheCount = 3; // 预缓存前后各3页
 
   @override
   void initState() {
     super.initState();
     _focusNode.requestFocus();
+    _precacheImages();
+  }
+
+  @override
+  void didUpdateWidget(ChapterViewerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.chapter != widget.chapter) {
+      _imageCache.clear();
+      _precacheImages();
+    }
+  }
+
+  void _precacheImages() async {
+    // 预缓存当前页和前后几页
+    final start = (currentPageIndex - _precacheCount).clamp(
+      0,
+      widget.chapter.pages.length - 1,
+    );
+    final end = (currentPageIndex + _precacheCount).clamp(
+      0,
+      widget.chapter.pages.length - 1,
+    );
+
+    for (int i = start; i <= end; i++) {
+      if (!_imageCache.containsKey(i)) {
+        final file = widget.chapter.pages[i];
+        final provider = FileImage(file);
+        _imageCache[i] = provider;
+
+        // 预加载图片到内存
+        try {
+          await precacheImage(provider, context);
+        } catch (e) {
+          debugPrint('Failed to precache image: ${file.path}');
+        }
+      }
+    }
   }
 
   void _nextPage() {
     if (currentPageIndex < widget.chapter.pages.length - 1) {
-      setState(() => currentPageIndex++);
+      setState(() {
+        currentPageIndex++;
+        _precacheImages(); // 翻页时预缓存新页
+      });
     }
   }
 
   void _previousPage() {
     if (currentPageIndex > 0) {
-      setState(() => currentPageIndex--);
+      setState(() {
+        currentPageIndex--;
+        _precacheImages(); // 翻页时预缓存新页
+      });
     }
   }
 
   @override
   void dispose() {
     _focusNode.dispose();
+    _imageCache.clear();
     super.dispose();
   }
 
@@ -419,9 +465,9 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
             children: [
               Center(
                 child: PhotoView(
-                  imageProvider: FileImage(
-                    widget.chapter.pages[currentPageIndex],
-                  ),
+                  imageProvider:
+                      _imageCache[currentPageIndex] ??
+                      FileImage(widget.chapter.pages[currentPageIndex]),
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 2,
                 ),
