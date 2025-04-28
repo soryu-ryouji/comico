@@ -1,0 +1,61 @@
+name: Build Windows Nightly
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  build:
+    name: Build Windows App
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 'stable'
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Windows
+      run: flutter build windows
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: build/windows/runner/Release/
+
+  release:
+    name: Publish Nightly Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-build
+        path: build/
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: nightly
+        name: Nightly Build
+        body: 'Automated nightly build for Windows.'
+        draft: false
+        prerelease: true
+        files: build/**/*
+        token: ${{ secrets.GITHUB_TOKEN }}
