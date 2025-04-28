@@ -30,11 +30,17 @@ jobs:
     - name: Build Windows
       run: flutter build windows
 
-    - name: Upload artifact
+    - name: Show build output (debug)
+      run: dir build\windows\x64\runner\Release
+
+    - name: Create ZIP archive
+      run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath comico_windows_nightly.zip
+
+    - name: Upload zipped artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-build
-        path: build/windows/runner/Release/
+        path: comico_windows_nightly.zip
 
   release:
     name: Publish Nightly Release
@@ -46,9 +52,9 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: windows-build
-        path: build/
+        path: .
 
-    - name: Create GitHub Release
+    - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: nightly
@@ -56,5 +62,5 @@ jobs:
         body: Automated nightly build for Windows.
         draft: false
         prerelease: true
-        files: build/**/*  # 上传所有编译输出
+        files: comico_windows_nightly.zip
         token: ${{ secrets.GITHUB_TOKEN }}
