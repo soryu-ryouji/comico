@@ -12,8 +12,8 @@ Manga Fdolder
 |   |- ....
 |   |- Cover.jpg/png
 |-漫画2
-|   |- Chapter_01
-|   |- Chapter_02
-|   |- ....
-|   |- Cover.jpg/png
+    |- Chapter_01
+    |- Chapter_02
+    |- ....
+    |- Cover.jpg/png
 ```
