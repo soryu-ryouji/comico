@@ -19,10 +19,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
+    - name: Setup Flutter (official)
+      uses: flutter-actions/setup-flutter@v2
       with:
-        flutter-version: 'stable'
+        channel: stable
 
     - name: Install dependencies
       run: flutter pub get
@@ -48,14 +48,13 @@ jobs:
         name: windows-build
         path: build/
 
-    - name: Create Release
-      id: create_release
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: nightly
         name: Nightly Build
-        body: 'Automated nightly build for Windows.'
+        body: Automated nightly build for Windows.
         draft: false
         prerelease: true
-        files: build/**/*
+        files: build/**/*  # 上传所有编译输出
         token: ${{ secrets.GITHUB_TOKEN }}
