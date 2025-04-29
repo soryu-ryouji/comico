@@ -100,7 +100,6 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
   }
 
   void _handlePointerHover(PointerHoverEvent event) {
-    debugPrint('Pointer moved: ${event.position}');
     if (event.position.dy < 50) {
       setState(() {
         _showAppBar = true;
