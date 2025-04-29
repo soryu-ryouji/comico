@@ -1,11 +1,9 @@
 import 'dart:io';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'comic.dart';
 import 'chapter_screen.dart';
 import 'settings_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/services.dart';
 
 class ComicListScreen extends StatefulWidget {
   final String comicsDirectory;
@@ -18,15 +16,30 @@ class ComicListScreen extends StatefulWidget {
 
 class _ComicListScreenState extends State<ComicListScreen> {
   List<Comic> comics = [];
+  List<Comic> filteredComics = []; // 新增：用于存储过滤后的漫画列表
   bool isGridView = true;
   bool isLoading = true;
   double gridItemWidth = 150.0;
+  final TextEditingController _searchController =
+      TextEditingController(); // 搜索框控制器
 
   @override
   void initState() {
     super.initState();
     _loadComics();
     _loadGridSettings();
+    _searchController.addListener(_filterComics); // 监听搜索框输入
+  }
+
+  // 过滤漫画列表的方法
+  void _filterComics() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      filteredComics =
+          comics.where((comic) {
+            return comic.title.toLowerCase().contains(query);
+          }).toList();
+    });
   }
 
   Future<void> _loadGridSettings() async {
@@ -117,6 +130,7 @@ class _ComicListScreenState extends State<ComicListScreen> {
 
     setState(() {
       comics = loadedComics..sort((a, b) => a.title.compareTo(b.title));
+      filteredComics = comics; // 初始化时，filteredComics 为所有漫画
       isLoading = false;
     });
   }
@@ -168,7 +182,14 @@ class _ComicListScreenState extends State<ComicListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('comico'),
+        title: TextField(
+          controller: _searchController, // 绑定控制器
+          decoration: InputDecoration(
+            hintText: '搜索漫画...',
+            border: InputBorder.none,
+            icon: Icon(Icons.search),
+          ),
+        ),
         actions: [
           IconButton(
             icon: Icon(isGridView ? Icons.list : Icons.grid_view),
@@ -196,61 +217,43 @@ class _ComicListScreenState extends State<ComicListScreen> {
             .floor()
             .clamp(2, 10);
 
-        return Listener(
-          onPointerSignal: (pointerSignal) {
-            if (pointerSignal is PointerScrollEvent) {
-              final keys = RawKeyboard.instance.keysPressed;
-              final isCtrlPressed =
-                  keys.contains(LogicalKeyboardKey.controlLeft) ||
-                  keys.contains(LogicalKeyboardKey.controlRight);
-
-              if (isCtrlPressed) {
-                // 阻止滚动
-                return;
-              }
-            }
-          },
-          child: GridView.builder(
-            padding: const EdgeInsets.all(8),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.7,
-            ),
-            itemCount: comics.length,
-            itemBuilder: (context, index) {
-              final comic = comics[index];
-              return GestureDetector(
-                onTap: () => _navigateToComicDetail(comic),
-                child: Card(
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child:
-                            comic.coverImage != null
-                                ? Image.file(
-                                  comic.coverImage!,
-                                  fit: BoxFit.cover,
-                                )
-                                : const Center(
-                                  child: Icon(Icons.image, size: 50),
-                                ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          comic.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+        return GridView.builder(
+          padding: const EdgeInsets.all(8),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 0.7,
           ),
+          itemCount: filteredComics.length, // 使用过滤后的漫画列表
+          itemBuilder: (context, index) {
+            final comic = filteredComics[index];
+            return GestureDetector(
+              onTap: () => _navigateToComicDetail(comic),
+              child: Card(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child:
+                          comic.coverImage != null
+                              ? Image.file(comic.coverImage!, fit: BoxFit.cover)
+                              : const Center(
+                                child: Icon(Icons.image, size: 50),
+                              ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        comic.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -258,9 +261,9 @@ class _ComicListScreenState extends State<ComicListScreen> {
 
   Widget _buildListView() {
     return ListView.builder(
-      itemCount: comics.length,
+      itemCount: filteredComics.length, // 使用过滤后的漫画列表
       itemBuilder: (context, index) {
-        final comic = comics[index];
+        final comic = filteredComics[index];
         return ListTile(
           leading:
               comic.coverImage != null
