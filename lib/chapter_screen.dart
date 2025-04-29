@@ -14,10 +14,12 @@ class ChapterViewerScreen extends StatefulWidget {
 }
 
 class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
-  int currentPageIndex = 0;
+  int curPageIndex = 0;
   final FocusNode _focusNode = FocusNode();
   final Map<int, ImageProvider> _imageCache = {}; // 存储已加载的图片
   static const int _precacheCount = 3; // 预缓存前后各3页
+
+  bool _showAppBar = false;
 
   @override
   void initState() {
@@ -48,11 +50,11 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
 
   // 预缓存图片：同时缓存当前页和前后几页
   void _precacheImages() async {
-    final start = (currentPageIndex - _precacheCount).clamp(
+    final start = (curPageIndex - _precacheCount).clamp(
       0,
       widget.chapter.pages.length - 1,
     );
-    final end = (currentPageIndex + _precacheCount).clamp(
+    final end = (curPageIndex + _precacheCount).clamp(
       0,
       widget.chapter.pages.length - 1,
     );
@@ -73,18 +75,18 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
   }
 
   void _nextPage() {
-    if (currentPageIndex < widget.chapter.pages.length - 1) {
+    if (curPageIndex < widget.chapter.pages.length - 1) {
       setState(() {
-        currentPageIndex++;
-        _precacheImages(); // 翻页时预缓存新页
+        curPageIndex++;
+        _precacheImages();
       });
     }
   }
 
   void _previousPage() {
-    if (currentPageIndex > 0) {
+    if (curPageIndex > 0) {
       setState(() {
-        currentPageIndex--;
+        curPageIndex--;
         _precacheImages();
       });
     }
@@ -97,38 +99,63 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
     super.dispose();
   }
 
+  void _handlePointerHover(PointerHoverEvent event) {
+    debugPrint('Pointer moved: ${event.position}');
+    if (event.position.dy < 50) {
+      setState(() {
+        _showAppBar = true;
+      });
+    } else {
+      setState(() {
+        _showAppBar = false;
+      });
+    }
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      if (event.scrollDelta.dy > 0) {
+        _nextPage();
+      } else if (event.scrollDelta.dy < 0) {
+        _previousPage();
+      }
+    }
+  }
+
+  void _handleKeyDown(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        _nextPage();
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        _previousPage();
+      }
+    }
+  }
+
+  AppBar? _updateAppbar() {
+    if (!_showAppBar) return null;
+
+    final progress = '${curPageIndex + 1}/${widget.chapter.pages.length}';
+    final title = '${widget.chapter.name} - $progress';
+
+    return AppBar(title: Text(title));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title =
-        '${widget.chapter.name} - ${currentPageIndex + 1}/${widget.chapter.pages.length}';
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: _updateAppbar(),
       body: KeyboardListener(
         focusNode: _focusNode,
-        onKeyEvent: (KeyEvent event) {
-          if (event is KeyDownEvent) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-              _nextPage();
-            } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-              _previousPage();
-            }
-          }
-        },
+        onKeyEvent: _handleKeyDown,
         child: Listener(
-          onPointerSignal: (event) {
-            if (event is PointerScrollEvent) {
-              if (event.scrollDelta.dy > 0) {
-                _nextPage();
-              } else if (event.scrollDelta.dy < 0) {
-                _previousPage();
-              }
-            }
-          },
+          onPointerHover: _handlePointerHover,
+          onPointerSignal: _handlePointerSignal,
           child: Stack(
             children: [
               Center(
                 child: PhotoView(
-                  imageProvider: tryGetImage(currentPageIndex),
+                  imageProvider: tryGetImage(curPageIndex),
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 2,
                 ),
