@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'comic.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'settings_screen.dart';
 import 'chapter_screen.dart';
+import 'settings_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 class ComicListScreen extends StatefulWidget {
   final String comicsDirectory;
@@ -18,11 +20,20 @@ class _ComicListScreenState extends State<ComicListScreen> {
   List<Comic> comics = [];
   bool isGridView = true;
   bool isLoading = true;
+  double gridItemWidth = 150.0;
 
   @override
   void initState() {
     super.initState();
     _loadComics();
+    _loadGridSettings();
+  }
+
+  Future<void> _loadGridSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      gridItemWidth = prefs.getDouble('gridItemWidth') ?? 150.0;
+    });
   }
 
   Future<void> _loadComics() async {
@@ -67,7 +78,6 @@ class _ComicListScreenState extends State<ComicListScreen> {
       final chapterDirs =
           await comicDir.list().where((entity) => entity is Directory).toList();
 
-      // 按名字排序（支持中日韩 Unicode 排序）
       chapterDirs.sort((a, b) => a.path.compareTo(b.path));
 
       final chapters = <Chapter>[];
@@ -116,21 +126,29 @@ class _ComicListScreenState extends State<ComicListScreen> {
   }
 
   void _openSettings() async {
-    final newDirectory = await Navigator.of(context).push<String>(
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder:
             (context) => SettingsScreen(
               initialDirectory: widget.comicsDirectory,
-              onSave: (newPath) {
-                Navigator.pop(context, newPath); // 返回新路径
+              initialGridItemWidth: gridItemWidth,
+              onSave: (newPath, newItemWidth) {
+                Navigator.pop(context, {
+                  'directory': newPath,
+                  'gridItemWidth': newItemWidth,
+                });
               },
             ),
       ),
     );
 
-    if (newDirectory != null && newDirectory.isNotEmpty) {
+    if (result != null) {
+      final newDirectory = result['directory'] as String;
+      final newWidth = result['gridItemWidth'] as double;
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('comicsDirectory', newDirectory);
+      await prefs.setDouble('gridItemWidth', newWidth);
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -150,7 +168,7 @@ class _ComicListScreenState extends State<ComicListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('漫画列表'),
+        title: const Text('comico'),
         actions: [
           IconButton(
             icon: Icon(isGridView ? Icons.list : Icons.grid_view),
@@ -174,48 +192,65 @@ class _ComicListScreenState extends State<ComicListScreen> {
   Widget _buildGridView() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 设定每个格子最小宽度
-        const double minItemWidth = 150;
-        int crossAxisCount = (constraints.maxWidth / minItemWidth).floor();
-        crossAxisCount = crossAxisCount.clamp(2, 8); // 最少2个，最多8个（可根据需要调整）
+        int crossAxisCount = (constraints.maxWidth / gridItemWidth)
+            .floor()
+            .clamp(2, 10);
 
-        return GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 0.7, // 图片比例
-          ),
-          itemCount: comics.length,
-          itemBuilder: (context, index) {
-            final comic = comics[index];
-            return GestureDetector(
-              onTap: () => _navigateToComicDetail(comic),
-              child: Card(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child:
-                          comic.coverImage != null
-                              ? Image.file(comic.coverImage!, fit: BoxFit.cover)
-                              : const Center(
-                                child: Icon(Icons.image, size: 50),
-                              ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        comic.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
+        return Listener(
+          onPointerSignal: (pointerSignal) {
+            if (pointerSignal is PointerScrollEvent) {
+              final keys = RawKeyboard.instance.keysPressed;
+              final isCtrlPressed =
+                  keys.contains(LogicalKeyboardKey.controlLeft) ||
+                  keys.contains(LogicalKeyboardKey.controlRight);
+
+              if (isCtrlPressed) {
+                // 阻止滚动
+                return;
+              }
+            }
           },
+          child: GridView.builder(
+            padding: const EdgeInsets.all(8),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.7,
+            ),
+            itemCount: comics.length,
+            itemBuilder: (context, index) {
+              final comic = comics[index];
+              return GestureDetector(
+                onTap: () => _navigateToComicDetail(comic),
+                child: Card(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child:
+                            comic.coverImage != null
+                                ? Image.file(
+                                  comic.coverImage!,
+                                  fit: BoxFit.cover,
+                                )
+                                : const Center(
+                                  child: Icon(Icons.image, size: 50),
+                                ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          comic.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -274,14 +309,13 @@ class ComicDetailScreen extends StatelessWidget {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(16), // 加点内边距
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('章节列表', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 10),
                   Expanded(
-                    // 一定要加 Expanded 包住 ListView，不然溢出
                     child: ListView.builder(
                       itemCount: comic.chapters.length,
                       itemBuilder: (context, index) {

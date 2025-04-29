@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String initialDirectory;
-  final Function(String) onSave;
+  final double initialGridItemWidth;
+  final Function(String, double) onSave;
 
   const SettingsScreen({
     super.key,
     required this.initialDirectory,
+    required this.initialGridItemWidth,
     required this.onSave,
   });
 
@@ -16,11 +18,13 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _directoryController;
+  double _gridItemWidth = 150;
 
   @override
   void initState() {
     super.initState();
     _directoryController = TextEditingController(text: widget.initialDirectory);
+    _gridItemWidth = widget.initialGridItemWidth;
   }
 
   @override
@@ -46,9 +50,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            Row(
+              children: [
+                const Text('Grid 元素宽度:'),
+                Expanded(
+                  child: Slider(
+                    value: _gridItemWidth,
+                    min: 80,
+                    max: 300,
+                    divisions: 22,
+                    label: '${_gridItemWidth.toInt()} px',
+                    onChanged: (value) {
+                      setState(() {
+                        _gridItemWidth = value;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
             ElevatedButton(
               onPressed: () {
-                widget.onSave(_directoryController.text);
+                widget.onSave(_directoryController.text, _gridItemWidth);
               },
               child: const Text('保存设置'),
             ),
