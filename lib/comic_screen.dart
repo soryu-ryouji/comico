@@ -16,22 +16,28 @@ class ComicListScreen extends StatefulWidget {
 
 class _ComicListScreenState extends State<ComicListScreen> {
   List<Comic> comics = [];
-  List<Comic> filteredComics = []; // 新增：用于存储过滤后的漫画列表
+  List<Comic> filteredComics = [];
   bool isGridView = true;
   bool isLoading = true;
   double gridItemWidth = 150.0;
-  final TextEditingController _searchController =
-      TextEditingController(); // 搜索框控制器
+  final TextEditingController _searchController = TextEditingController();
+  OverlayEntry? _contextMenuOverlayEntry;
 
   @override
   void initState() {
     super.initState();
     _loadComics();
     _loadGridSettings();
-    _searchController.addListener(_filterComics); // 监听搜索框输入
+    _searchController.addListener(_filterComics);
   }
 
-  // 过滤漫画列表的方法
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _removeContextMenu();
+    super.dispose();
+  }
+
   void _filterComics() {
     final query = _searchController.text.toLowerCase();
     setState(() {
@@ -114,7 +120,7 @@ class _ComicListScreenState extends State<ComicListScreen> {
           Chapter(
             name: chapterName,
             directory: chapterDir,
-            pages: pages..sort((a, b) => a.path.compareTo(b.path)),
+            pages: pages..sort((a, b) => _naturalCompare(a.path, b.path)),
           ),
         );
       }
@@ -130,9 +136,34 @@ class _ComicListScreenState extends State<ComicListScreen> {
 
     setState(() {
       comics = loadedComics..sort((a, b) => a.title.compareTo(b.title));
-      filteredComics = comics; // 初始化时，filteredComics 为所有漫画
+      filteredComics = comics;
       isLoading = false;
     });
+  }
+
+  int _naturalCompare(String a, String b) {
+    final reg = RegExp(r'(\d+)|(\D+)');
+    final ma = reg.allMatches(a);
+    final mb = reg.allMatches(b);
+
+    final len = ma.length < mb.length ? ma.length : mb.length;
+    for (var i = 0; i < len; i++) {
+      final am = ma.elementAt(i).group(0)!;
+      final bm = mb.elementAt(i).group(0)!;
+
+      final an = int.tryParse(am);
+      final bn = int.tryParse(bm);
+
+      if (an != null && bn != null) {
+        final diff = an - bn;
+        if (diff != 0) return diff;
+      } else {
+        final diff = am.compareTo(bm);
+        if (diff != 0) return diff;
+      }
+    }
+
+    return a.length.compareTo(b.length);
   }
 
   void _toggleViewMode() {
@@ -178,35 +209,124 @@ class _ComicListScreenState extends State<ComicListScreen> {
     );
   }
 
+  void _showContextMenu(
+    BuildContext context,
+    Offset globalPosition,
+    String path,
+  ) {
+    _removeContextMenu();
+
+    final overlayState = Overlay.of(context);
+
+    _contextMenuOverlayEntry = OverlayEntry(
+      builder:
+          (context) => Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: _removeContextMenu,
+                  behavior: HitTestBehavior.translucent,
+                ),
+              ),
+              Positioned(
+                left: globalPosition.dx,
+                top: globalPosition.dy,
+                child: Material(
+                  elevation: 8,
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildMenuItem(
+                          icon: Icons.folder_open,
+                          text: '在资源管理器中打开',
+                          onTap: () {
+                            _removeContextMenu();
+                            _openInExplorer(path);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    overlayState.insert(_contextMenuOverlayEntry!);
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String text,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [Icon(icon, size: 20), SizedBox(width: 8), Text(text)],
+        ),
+      ),
+    );
+  }
+
+  void _removeContextMenu() {
+    _contextMenuOverlayEntry?.remove();
+    _contextMenuOverlayEntry = null;
+  }
+
+  void _openInExplorer(String path) async {
+    try {
+      if (Platform.isWindows) {
+        await Process.run('explorer', [path.replaceAll('/', '\\')]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [path]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [path]);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('打开资源管理器失败: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _searchController, // 绑定控制器
-          decoration: InputDecoration(
-            hintText: '搜索漫画...',
-            border: InputBorder.none,
-            icon: Icon(Icons.search),
+    return GestureDetector(
+      onTap: _removeContextMenu,
+      behavior: HitTestBehavior.opaque,
+      child: Scaffold(
+        appBar: AppBar(
+          title: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: '搜索漫画...',
+              border: InputBorder.none,
+              icon: Icon(Icons.search),
+            ),
           ),
+          actions: [
+            IconButton(
+              icon: Icon(isGridView ? Icons.list : Icons.grid_view),
+              onPressed: _toggleViewMode,
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: _openSettings,
+            ),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(isGridView ? Icons.list : Icons.grid_view),
-            onPressed: _toggleViewMode,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _openSettings,
-          ),
-        ],
+        body:
+            isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : isGridView
+                ? _buildGridView()
+                : _buildListView(),
       ),
-      body:
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : isGridView
-              ? _buildGridView()
-              : _buildListView(),
     );
   }
 
@@ -225,11 +345,19 @@ class _ComicListScreenState extends State<ComicListScreen> {
             mainAxisSpacing: 8,
             childAspectRatio: 0.7,
           ),
-          itemCount: filteredComics.length, // 使用过滤后的漫画列表
+          itemCount: filteredComics.length,
           itemBuilder: (context, index) {
             final comic = filteredComics[index];
+            final comicDir =
+                comic.chapters.isNotEmpty
+                    ? comic.chapters.first.directory.parent.path
+                    : widget.comicsDirectory;
+
             return GestureDetector(
               onTap: () => _navigateToComicDetail(comic),
+              onSecondaryTapDown: (details) {
+                _showContextMenu(context, details.globalPosition, comicDir);
+              },
               child: Card(
                 child: Column(
                   children: [
@@ -261,22 +389,32 @@ class _ComicListScreenState extends State<ComicListScreen> {
 
   Widget _buildListView() {
     return ListView.builder(
-      itemCount: filteredComics.length, // 使用过滤后的漫画列表
+      itemCount: filteredComics.length,
       itemBuilder: (context, index) {
         final comic = filteredComics[index];
-        return ListTile(
-          leading:
-              comic.coverImage != null
-                  ? Image.file(
-                    comic.coverImage!,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                  )
-                  : const Icon(Icons.image),
-          title: Text(comic.title),
-          subtitle: Text('${comic.chapters.length} 章'),
+        final comicDir =
+            comic.chapters.isNotEmpty
+                ? comic.chapters.first.directory.parent.path
+                : widget.comicsDirectory;
+
+        return GestureDetector(
           onTap: () => _navigateToComicDetail(comic),
+          onSecondaryTapDown: (details) {
+            _showContextMenu(context, details.localPosition, comicDir);
+          },
+          child: ListTile(
+            leading:
+                comic.coverImage != null
+                    ? Image.file(
+                      comic.coverImage!,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                    )
+                    : const Icon(Icons.image),
+            title: Text(comic.title),
+            subtitle: Text('${comic.chapters.length} 章'),
+          ),
         );
       },
     );
