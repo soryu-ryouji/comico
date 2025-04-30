@@ -3,9 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'comic_screen.dart';
 import 'theme_provider.dart';
+import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+
+  windowManager.setTitleBarStyle(TitleBarStyle.hidden);
 
   final prefs = await SharedPreferences.getInstance();
   final initialPath = prefs.getString('comicsDirectory') ?? 'D:\\Comics';

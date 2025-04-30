@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 import 'comic.dart';
 import 'settings_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -304,12 +306,23 @@ class _ComicScreenState extends State<ComicScreen> {
 
   AppBar _buildComicAppBar() {
     return AppBar(
-      title: TextField(
-        controller: _searchController,
-        decoration: const InputDecoration(
-          hintText: '搜索漫画...',
-          border: InputBorder.none,
-          icon: Icon(Icons.search),
+      title: MouseRegion(
+        cursor: SystemMouseCursors.move,
+        child: Listener(
+          // 如果点击左键一段时间后再拖动，窗口会跟随鼠标移动
+          onPointerDown: (event) {
+            if (event.buttons == kPrimaryMouseButton) {
+              windowManager.startDragging();
+            }
+          },
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: '搜索漫画...',
+              border: InputBorder.none,
+              icon: Icon(Icons.search),
+            ),
+          ),
         ),
       ),
       actions: [
