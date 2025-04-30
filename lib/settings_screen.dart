@@ -15,12 +15,12 @@ class SettingsScreen extends StatefulWidget {
   });
 
   @override
-  _SettingsScreenState createState() => _SettingsScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late TextEditingController _directoryController;
-  double _gridItemWidth = 150;
+  late final TextEditingController _directoryController;
+  late double _gridItemWidth;
 
   @override
   void initState() {
@@ -37,84 +37,145 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(
+        title: const Text('设置'),
+        actions: [
+          IconButton(icon: const Icon(Icons.save), onPressed: _saveSettings),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _directoryController,
-              decoration: const InputDecoration(
-                labelText: '漫画目录路径',
-                hintText: '请输入漫画文件夹完整路径',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                const Text('Grid 元素宽度:'),
-                Expanded(
-                  child: Slider(
-                    value: _gridItemWidth,
-                    min: 80,
-                    max: 300,
-                    divisions: 22,
-                    label: '${_gridItemWidth.toInt()} px',
-                    onChanged: (value) {
-                      setState(() {
-                        _gridItemWidth = value;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-            // 设置白天/夜间模式
-            Row(
-              children: [
-                const Text('主题模式:'),
-                const SizedBox(width: 10),
-                DropdownButtonHideUnderline(
-                  // 移除默认的下划线
-                  child: DropdownButton<String>(
-                    value:
-                        themeProvider.themeMode == ThemeMode.dark
-                            ? 'dark'
-                            : 'light',
-                    items: const [
-                      DropdownMenuItem(value: 'light', child: Text('白天模式')),
-                      DropdownMenuItem(value: 'dark', child: Text('夜间模式')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.toggleTheme(value == 'dark');
-                      }
-                    },
-                    focusColor: Colors.transparent, // 移除焦点时的半透明背景
-                    dropdownColor: Theme.of(context).cardColor, // 使用主题卡片颜色
-                    elevation: 0, // 完全移除阴影
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: Theme.of(context).iconTheme.color,
-                    ),
-                    style: Theme.of(context).textTheme.bodyMedium, // 使用主题文本样式
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                widget.onSave(_directoryController.text, _gridItemWidth);
-              },
-              child: const Text('保存设置'),
-            ),
+            _buildDirectorySetting(),
+            const SizedBox(height: 24),
+            _buildGridWidthSetting(),
+            const SizedBox(height: 24),
+            _buildThemeSetting(themeProvider, theme),
+            const SizedBox(height: 32),
+            _buildSaveButton(),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildDirectorySetting() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('漫画目录路径', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _directoryController,
+          decoration: const InputDecoration(
+            hintText: '请输入漫画文件夹完整路径',
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridWidthSetting() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('网格项宽度', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: _gridItemWidth,
+                min: 80,
+                max: 300,
+                divisions: 22,
+                label: '${_gridItemWidth.toInt()} px',
+                onChanged: _updateGridWidth,
+              ),
+            ),
+            SizedBox(
+              width: 50,
+              child: Text(
+                '${_gridItemWidth.toInt()}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThemeSetting(ThemeProvider themeProvider, ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('主题模式', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.dividerColor),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value:
+                    themeProvider.themeMode == ThemeMode.dark
+                        ? 'dark'
+                        : 'light',
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(value: 'light', child: Text('白天模式')),
+                  DropdownMenuItem(value: 'dark', child: Text('夜间模式')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    themeProvider.toggleTheme(value == 'dark');
+                  }
+                },
+                dropdownColor: theme.cardColor,
+                icon: Icon(Icons.arrow_drop_down, color: theme.iconTheme.color),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return Center(
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(200, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: _saveSettings,
+        child: const Text('保存设置'),
+      ),
+    );
+  }
+
+  void _updateGridWidth(double value) {
+    setState(() => _gridItemWidth = value);
+  }
+
+  void _saveSettings() {
+    widget.onSave(_directoryController.text, _gridItemWidth);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('设置已保存')));
   }
 }

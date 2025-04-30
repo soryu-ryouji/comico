@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
       theme: themeProvider.lightTheme,
       darkTheme: themeProvider.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: ComicListScreen(comicsDirectory: initialDirectory),
+      home: ComicScreen(comicsDirectory: initialDirectory),
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         return MediaQuery(
