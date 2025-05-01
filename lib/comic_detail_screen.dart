@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'comic.dart';
 import 'chapter_screen.dart';
 import 'dart:io';
+import 'draggable_app_bar.dart';
 
 class ComicDetailScreen extends StatelessWidget {
   final Comic comic;
@@ -11,8 +12,24 @@ class ComicDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(comic.title)),
-      body: Row(
+      body: Stack(
+        children: [
+          _buildDetailView(),
+          DraggableAppBar(leftActions: [Text(comic.title)]),
+        ],
+      ),
+    );
+  }
+
+  Padding _buildDetailView() {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: kToolbarHeight,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      child: Row(
         children: [
           _ComicCover(coverImage: comic.coverImage),
           _ChapterList(chapters: comic.chapters),
@@ -49,7 +66,12 @@ class _ChapterList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(
+          top: 16,
+          left: 16,
+          right: 16,
+          bottom: 16,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

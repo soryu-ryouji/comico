@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'package:flutter/gestures.dart';
+import 'package:comico/draggable_app_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
 import 'comic.dart';
 import 'settings_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -297,35 +296,16 @@ class _ComicScreenState extends State<ComicScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _removeContextMenu,
-      behavior: HitTestBehavior.opaque,
-      child: Scaffold(appBar: _buildComicAppBar(), body: _buildBody()),
+    return Scaffold(
+      body: Stack(children: [_buildComicView(), _buildDraggableAppBar()]),
     );
   }
 
-  AppBar _buildComicAppBar() {
-    return AppBar(
-      title: MouseRegion(
-        cursor: SystemMouseCursors.move,
-        child: Listener(
-          // 如果点击左键一段时间后再拖动，窗口会跟随鼠标移动
-          onPointerDown: (event) {
-            if (event.buttons == kPrimaryMouseButton) {
-              windowManager.startDragging();
-            }
-          },
-          child: TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: '搜索漫画...',
-              border: InputBorder.none,
-              icon: Icon(Icons.search),
-            ),
-          ),
-        ),
-      ),
-      actions: [
+  Widget _buildDraggableAppBar() {
+    return DraggableAppBar(
+      showBackButton: false,
+      leftActions: [Text('comico')],
+      rightActions: [
         IconButton(
           icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
           onPressed: _toggleViewMode,
@@ -335,15 +315,16 @@ class _ComicScreenState extends State<ComicScreen> {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildComicView() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    return _buildComicView();
-  }
 
-  Widget _buildComicView() {
-    return _isGridView ? _buildGridView() : _buildListView();
+    if (_isGridView) {
+      return _buildGridView();
+    } else {
+      return _buildListView();
+    }
   }
 
   Widget _buildGridView() {
@@ -354,7 +335,12 @@ class _ComicScreenState extends State<ComicScreen> {
             .clamp(2, 10);
 
         return GridView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.only(
+            top: kToolbarHeight,
+            left: 16,
+            right: 16,
+            bottom: 16,
+          ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 8,
@@ -379,6 +365,12 @@ class _ComicScreenState extends State<ComicScreen> {
 
   Widget _buildListView() {
     return ListView.builder(
+      padding: const EdgeInsets.only(
+        top: kToolbarHeight,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
       itemCount: _filteredComics.length,
       itemBuilder: (context, index) {
         final comic = _filteredComics[index];

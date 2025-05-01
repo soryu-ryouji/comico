@@ -1,3 +1,4 @@
+import 'package:comico/draggable_app_bar.dart';
 import 'package:comico/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -37,30 +38,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-        actions: [
-          IconButton(icon: const Icon(Icons.save), onPressed: _saveSettings),
+      body: Stack(
+        children: [
+          _buildSettingsView(),
+          DraggableAppBar(
+            leftActions: [Text('设置')],
+            showBackButton: true,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            visible: true,
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDirectorySetting(),
-            const SizedBox(height: 24),
-            _buildGridWidthSetting(),
-            const SizedBox(height: 24),
-            _buildThemeSetting(themeProvider, theme),
-            const SizedBox(height: 32),
-            _buildSaveButton(),
-          ],
-        ),
+    );
+  }
+
+  Widget _buildSettingsView() {
+    final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(
+        top: kToolbarHeight,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDirectorySetting(),
+          const SizedBox(height: 24),
+          _buildGridWidthSetting(),
+          const SizedBox(height: 24),
+          _buildThemeSetting(themeProvider, theme),
+          const SizedBox(height: 32),
+          _buildSaveButton(),
+        ],
       ),
     );
   }

@@ -1,9 +1,9 @@
-import 'package:window_manager/window_manager.dart';
 import 'comic.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
+import 'draggable_app_bar.dart';
 
 class ChapterViewerScreen extends StatefulWidget {
   final Chapter chapter;
@@ -132,80 +132,6 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
     }
   }
 
-  Widget _buildFloatingAppBar() {
-    if (!_showAppBar) return const SizedBox.shrink();
-
-    final progress = '${curPageIndex + 1} / ${widget.chapter.pages.length}';
-    final title = '${widget.chapter.name}  -  $progress';
-
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Material(
-        elevation: 4,
-        color: Theme.of(context).appBarTheme.backgroundColor,
-        child: SizedBox(
-          height: kToolbarHeight,
-          child: Stack(
-            children: [
-              // 整个区域都可拖动（放在底层）
-              Positioned.fill(
-                child: Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (_) => windowManager.startDragging(),
-                  child: MouseRegion(cursor: SystemMouseCursors.move),
-                ),
-              ),
-              // 内容层（按钮可点击）
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(title),
-                      ),
-                    ),
-                  ),
-                  _buildAppBarButtons(),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppBarButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.fullscreen),
-          tooltip: '最大化',
-          onPressed: windowManager.maximize,
-        ),
-        IconButton(
-          icon: const Icon(Icons.fullscreen_exit),
-          tooltip: '还原窗口',
-          onPressed: windowManager.restore,
-        ),
-        IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: '关闭',
-          onPressed: windowManager.close,
-        ),
-      ],
-    );
-  }
-
   Widget _buildPageContent() {
     return Center(
       child: PhotoView(
@@ -241,6 +167,8 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final progress = '${curPageIndex + 1} / ${widget.chapter.pages.length}';
+    final title = '${widget.chapter.name}  -  $progress';
     return Scaffold(
       body: KeyboardListener(
         focusNode: _focusNode,
@@ -252,7 +180,7 @@ class _ChapterViewerScreenState extends State<ChapterViewerScreen> {
             children: [
               _buildPageContent(),
               _buildPageNavigationAreas(),
-              _buildFloatingAppBar(),
+              DraggableAppBar(leftActions: [Text(title)], visible: _showAppBar),
             ],
           ),
         ),
