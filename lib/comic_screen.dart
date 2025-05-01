@@ -5,6 +5,7 @@ import 'comic.dart';
 import 'settings_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'comic_detail_screen.dart';
+import 'context_menu.dart';
 
 class ComicScreen extends StatefulWidget {
   final String comicsDirectory;
@@ -19,9 +20,11 @@ class _ComicScreenState extends State<ComicScreen> {
   final List<Comic> _comics = [];
   final List<Comic> _filteredComics = [];
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   bool _isGridView = true;
   bool _isLoading = true;
+  bool _showSearchBar = false;
   double _gridItemWidth = 150.0;
   OverlayEntry? _contextMenuOverlayEntry;
 
@@ -44,8 +47,21 @@ class _ComicScreenState extends State<ComicScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _removeContextMenu();
     super.dispose();
+  }
+
+  void _toggleSearchBar() {
+    setState(() {
+      _showSearchBar = !_showSearchBar;
+      if (_showSearchBar) {
+        _searchFocusNode.requestFocus();
+      } else {
+        _searchController.clear();
+        _filterComics();
+      }
+    });
   }
 
   Future<void> _loadGridSettings() async {
@@ -264,7 +280,7 @@ class _ComicScreenState extends State<ComicScreen> {
 
     _contextMenuOverlayEntry = OverlayEntry(
       builder:
-          (context) => _ContextMenu(
+          (context) => ContextMenu(
             position: position,
             onOpenExplorer: () => _openInExplorer(path),
             onClose: _removeContextMenu,
@@ -297,7 +313,13 @@ class _ComicScreenState extends State<ComicScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(children: [_buildComicView(), _buildDraggableAppBar()]),
+      body: Stack(
+        children: [
+          _buildComicView(),
+          _buildDraggableAppBar(),
+          if (_showSearchBar) _buildSearchBar(),
+        ],
+      ),
     );
   }
 
@@ -306,11 +328,12 @@ class _ComicScreenState extends State<ComicScreen> {
       showBackButton: false,
       leftActions: [Text('comico')],
       rightActions: [
+        IconButton(icon: Icon(Icons.search), onPressed: _toggleSearchBar),
         IconButton(
           icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
           onPressed: _toggleViewMode,
         ),
-        IconButton(icon: const Icon(Icons.settings), onPressed: _openSettings),
+        IconButton(icon: Icon(Icons.settings), onPressed: _openSettings),
       ],
     );
   }
@@ -320,14 +343,16 @@ class _ComicScreenState extends State<ComicScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final topPadding = _showSearchBar ? kToolbarHeight + 70.0 : kToolbarHeight;
+
     if (_isGridView) {
-      return _buildGridView();
+      return _buildGridView(topPadding);
     } else {
-      return _buildListView();
+      return _buildListView(topPadding);
     }
   }
 
-  Widget _buildGridView() {
+  Widget _buildGridView(double topPadding) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = (constraints.maxWidth / _gridItemWidth)
@@ -335,8 +360,8 @@ class _ComicScreenState extends State<ComicScreen> {
             .clamp(2, 10);
 
         return GridView.builder(
-          padding: const EdgeInsets.only(
-            top: kToolbarHeight,
+          padding: EdgeInsets.only(
+            top: topPadding,
             left: 16,
             right: 16,
             bottom: 16,
@@ -363,10 +388,10 @@ class _ComicScreenState extends State<ComicScreen> {
     );
   }
 
-  Widget _buildListView() {
+  Widget _buildListView(double topPadding) {
     return ListView.builder(
-      padding: const EdgeInsets.only(
-        top: kToolbarHeight,
+      padding: EdgeInsets.only(
+        top: topPadding,
         left: 16,
         right: 16,
         bottom: 16,
@@ -382,6 +407,56 @@ class _ComicScreenState extends State<ComicScreen> {
               (position, path) => _showContextMenu(context, position, path),
         );
       },
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Positioned(
+      top: kToolbarHeight + 8,
+      left: 16,
+      right: 16,
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: 48, // 固定高度
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.search, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    hintText: '搜索漫画...',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onSubmitted: (_) => _toggleSearchBar(),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, size: 20),
+                padding: EdgeInsets.zero,
+                onPressed: _toggleSearchBar,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -477,80 +552,6 @@ class _ComicListItem extends StatelessWidget {
                 : const Icon(Icons.image),
         title: Text(comic.title),
         subtitle: Text('${comic.chapters.length} 章'),
-      ),
-    );
-  }
-}
-
-class _ContextMenu extends StatelessWidget {
-  final Offset position;
-  final VoidCallback onOpenExplorer;
-  final VoidCallback onClose;
-
-  const _ContextMenu({
-    required this.position,
-    required this.onOpenExplorer,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: onClose,
-            behavior: HitTestBehavior.translucent,
-          ),
-        ),
-        Positioned(
-          left: position.dx,
-          top: position.dy,
-          child: Material(
-            elevation: 8,
-            child: IntrinsicWidth(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _ContextMenuItem(
-                    icon: Icons.folder_open,
-                    text: '在资源管理器中打开',
-                    onTap: onOpenExplorer,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ContextMenuItem extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final VoidCallback onTap;
-
-  const _ContextMenuItem({
-    required this.icon,
-    required this.text,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 8),
-            Text(text),
-          ],
-        ),
       ),
     );
   }
