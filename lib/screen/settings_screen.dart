@@ -2,6 +2,7 @@ import 'package:comico/widgets/draggable_app_bar.dart';
 import 'package:comico/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   final String initialDirectory;
@@ -43,6 +44,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           DraggableAppBar(
             leftActions: [const Text('设置')],
+            rightActions: [
+              IconButton(
+                onPressed: _saveSettings,
+                icon: const Icon(Icons.save),
+              ),
+            ],
             showBackButton: true,
             backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             visible: true,
@@ -85,7 +92,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           border: OutlineInputBorder(),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         ),
-        onChanged: (_) => _saveSettings(),
       ),
     );
   }
@@ -155,7 +161,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         },
         dropdownColor: theme.cardColor,
         icon: Icon(Icons.arrow_drop_down, color: theme.iconTheme.color),
-        isDense: true, // 保持紧凑但通过外层约束控制大小
+        isDense: true,
         focusColor: Colors.transparent,
         iconSize: 24,
         borderRadius: BorderRadius.circular(8),
@@ -209,6 +215,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _saveSettings() {
     widget.onSave(_directoryController.text, _gridItemWidth);
+    final prefs = SharedPreferences.getInstance();
+    prefs.then((prefs) {
+      prefs.setString('comicsDirectory', _directoryController.text);
+      prefs.setDouble('gridItemWidth', _gridItemWidth);
+    });
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('设置已保存')));
