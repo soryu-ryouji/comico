@@ -326,9 +326,10 @@ class _ComicScreenState extends State<ComicScreen> {
   Widget _buildDraggableAppBar() {
     return DraggableAppBar(
       showBackButton: false,
-      leftActions: [Text('comico')],
-      rightActions: [
+      leftActions: [
         IconButton(icon: Icon(Icons.search), onPressed: _toggleSearchBar),
+      ],
+      rightActions: [
         IconButton(
           icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
           onPressed: _toggleViewMode,
