@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'comic.dart';
+import 'package:comico/widgets/comic.dart';
 import 'chapter_screen.dart';
 import 'dart:io';
-import 'draggable_app_bar.dart';
+import 'package:comico/widgets/draggable_app_bar.dart';
 
 class ComicDetailScreen extends StatelessWidget {
   final Comic comic;

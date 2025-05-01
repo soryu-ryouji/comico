@@ -1,9 +1,9 @@
-import 'comic.dart';
+import 'package:comico/widgets/comic.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view.dart';
-import 'draggable_app_bar.dart';
+import 'package:comico/widgets/draggable_app_bar.dart';
 
 class ChapterViewerScreen extends StatefulWidget {
   final Chapter chapter;

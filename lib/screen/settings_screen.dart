@@ -1,4 +1,4 @@
-import 'package:comico/draggable_app_bar.dart';
+import 'package:comico/widgets/draggable_app_bar.dart';
 import 'package:comico/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
