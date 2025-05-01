@@ -50,7 +50,7 @@ class ComicGridView extends StatelessWidget {
   }
 }
 
-class _ComicGridItem extends StatelessWidget {
+class _ComicGridItem extends StatefulWidget {
   final Comic comic;
   final String comicsDirectory;
   final VoidCallback onTap;
@@ -64,35 +64,80 @@ class _ComicGridItem extends StatelessWidget {
   });
 
   @override
+  State<_ComicGridItem> createState() => _ComicGridItemState();
+}
+
+class _ComicGridItemState extends State<_ComicGridItem> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final comicDir =
-        comic.chapters.isNotEmpty
-            ? comic.chapters.first.directory.parent.path
-            : comicsDirectory;
+        widget.comic.chapters.isNotEmpty
+            ? widget.comic.chapters.first.directory.parent.path
+            : widget.comicsDirectory;
 
-    return GestureDetector(
-      onTap: onTap,
-      onSecondaryTapDown:
-          (details) => onContextMenu(details.globalPosition, comicDir),
-      child: Card(
-        child: Column(
-          children: [
-            Expanded(
-              child:
-                  comic.coverImage != null
-                      ? Image.file(comic.coverImage!, fit: BoxFit.cover)
-                      : const Center(child: Icon(Icons.image, size: 50)),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onSecondaryTapDown:
+            (details) => widget.onContextMenu(details.globalPosition, comicDir),
+        child: _buildCard(context),
+      ),
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
+    final hoverColor = Theme.of(context).hoverColor;
+
+    return Card(
+      child: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                _buildCoverImage(),
+                _buildHoverOverlay(_isHovered, hoverColor),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                comic.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+          ),
+          _buildTitle(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoverImage() {
+    return widget.comic.coverImage != null
+        ? Image.file(
+          widget.comic.coverImage!,
+          fit: BoxFit.cover,
+          width: double.infinity,
+        )
+        : const Center(child: Icon(Icons.image, size: 50));
+  }
+
+  Widget _buildHoverOverlay(bool isHovered, hoverColor) {
+    if (!isHovered) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: hoverColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+      ),
+    );
+  }
+
+  Widget _buildTitle() {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Text(
+        widget.comic.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
